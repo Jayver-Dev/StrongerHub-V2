@@ -591,11 +591,6 @@ ScriptSearchTab:CreateButton({
             return
         end
 
-        -- Clear previous results
-        if resultsSection then
-            resultsSection:Destroy()
-        end
-
         -- Fetch scripts from ScriptBlox API
         local success, response = pcall(function()
             return HttpService:JSONDecode(game:HttpGet("https://scriptblox.com/api/script/search?q=" .. searchQuery))
