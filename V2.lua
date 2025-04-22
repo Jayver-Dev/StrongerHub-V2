@@ -766,5 +766,147 @@ ScriptsTab:CreateButton({
 })
 
 
+-- Function to get team color
+local function GetTeamColor()
+    local player = game.Players.LocalPlayer
+    if player and player.Team then
+        return player.TeamColor.Color
+    else
+        return Color3.fromRGB(255, 255, 255)  -- Default to white if no team is found
+    end
+end
+
+-- Variables to store settings
+local espFont = "Arial"
+local espFontSize = 14
+local teamColorSync = false
+local espColor = Color3.fromRGB(255, 255, 255)  -- Default to white
+local displayHealth = true
+local healthBarStyle = "Bar"
+local healthColorGradient = true
+local npcEspEnabled = true
+local npcTypeFilter = "All"
+local npcHealthDisplay = true
+local displayDistance = true
+local espTransparency = 0.5
+
+-- Function to display health bar with gradient
+local function DisplayHealthBar(player, health)
+    -- Use healthBarStyle to determine display format
+    local healthBar = Instance.new("Frame")
+    healthBar.Size = UDim2.new(health, 0, 1, 0)
+    healthBar.BackgroundColor3 = healthColorGradient and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+    healthBar.BackgroundTransparency = 0.5
+    healthBar.Position = UDim2.new(0, 0, 0, 0)
+    -- Add further customization based on `healthBarStyle`
+    return healthBar
+end
+
+-- Function to update ESP settings
+local function UpdateESPSettings()
+    -- Loop through all players or NPCs and apply the settings
+    for _, target in pairs(game.Players:GetPlayers()) do
+        -- Skip local player if NPCESP is off
+        if target == game.Players.LocalPlayer and not npcEspEnabled then
+            continue
+        end
+
+        -- Check for NPC type filter
+        if npcTypeFilter ~= "All" then
+            -- Apply NPC filtering logic here if necessary
+            -- e.g., skip NPCs based on their type if they don't match filter
+        end
+
+        -- Handle Team Color Sync
+        if teamColorSync then
+            espColor = GetTeamColor()
+        end
+
+        -- Display ESP for each player or NPC
+        local espElement = Instance.new("TextLabel")
+        espElement.Text = target.Name
+        espElement.Font = Enum.Font[espFont]
+        espElement.TextSize = espFontSize
+        espElement.TextColor3 = espColor
+        espElement.TextTransparency = espTransparency
+        espElement.BackgroundTransparency = 1
+        espElement.Position = UDim2.new(0, 0, 0, 0)  -- Positioning logic based on player or NPC
+        espElement.Size = UDim2.new(0, 100, 0, 50)  -- Size logic, adjust as needed
+
+        -- Add logic to render health if enabled
+        if displayHealth then
+            -- Get health percentage (e.g., from player or NPC health)
+            local healthPercentage = target.Character and target.Character:FindFirstChild("Humanoid") and target.Character.Humanoid.Health / target.Character.Humanoid.MaxHealth or 0
+            local healthBar = DisplayHealthBar(target, healthPercentage)
+            healthBar.Parent = espElement
+        end
+
+        -- Add the ESP element to the workspace/UI
+        espElement.Parent = workspace -- Or your GUI container
+    end
+end
+
+-- Team color sync toggle
+local espToggle = EspTab:CreateToggle({
+    Name = "Enable Team Color Sync",
+    CurrentValue = false,
+    Flag = "ColorSync",
+    Callback = function(enabled)
+        teamColorSync = enabled
+        if enabled then
+            espColor = GetTeamColor()  -- Fetch team color when enabled
+        else
+            espColor = Color3.fromRGB(255, 255, 255)  -- Default to white if disabled
+        end
+        UpdateESPSettings() -- Update ESP after toggle
+    end
+})
+
+-- Display health toggle
+local espToggle2 = EspTab:CreateToggle({
+    Name = "Display Health",
+    CurrentValue = true,
+    Flag = "HealthDisplay",
+    Callback = function(enabled)
+        displayHealth = enabled
+        UpdateESPSettings() -- Update ESP after toggle
+    end
+})
+
+-- Health color gradient toggle
+local espToggle3 = EspTab:CreateToggle({
+    Name = "Health Color Gradient",
+    CurrentValue = true,
+    Flag = "HealthColor",
+    Callback = function(enabled)
+        healthColorGradient = enabled
+        UpdateESPSettings() -- Update ESP after toggle
+    end
+})
+
+-- Display distance toggle
+local espToggle6 = EspTab:CreateToggle({
+    Name = "Show Distance",
+    CurrentValue = true,
+    Flag = "Distance",
+    Callback = function(enabled)
+        displayDistance = enabled
+        UpdateESPSettings() -- Update ESP after toggle
+    end
+})
+
+-- Health bar style dropdown (Bar, Percentage, Numeric)
+local espDropdown2 = EspTab:CreateDropdown({
+    Name = "Health Bar Style",
+    Options = {"Bar", "Percentage", "Numeric"},
+    Default = "Bar",
+    Callback = function(style)
+        healthBarStyle = style
+        UpdateESPSettings() -- Update ESP after dropdown change
+    end
+})
+
+-- Call UpdateESPSettings() whenever settings are updated (on init or after changes)
+UpdateESPSettings()
 
 Rayfield:LoadConfiguration()
