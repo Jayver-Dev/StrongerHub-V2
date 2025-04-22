@@ -42,7 +42,7 @@ local Window = Rayfield:CreateWindow({
 
 local MainTab = Window:CreateTab("Main", "book-marked")
 local ScriptsTab = Window:CreateTab("Scripts", "scroll-text")
-local SettingsTab = Window:CreateTab("Settings", "cog")
+local SettingsTab = Window:CreateTab("Misc", "cog")
 
 local MainSection = MainTab:CreateSection("Info")
 MainSection:Set("Info")
@@ -656,7 +656,7 @@ ScriptSearchTab:CreateButton({
                 Title = "No Results",
                 Content = "No matching scripts found. Try a different keyword.",
                 Duration = 3,
-                Image = "search-off"
+                Image = "search"
             })
         end
     end
