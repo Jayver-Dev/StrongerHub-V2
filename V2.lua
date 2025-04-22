@@ -412,6 +412,7 @@ ScriptsTab:CreateButton({
     end
 })
 
+
 local HttpService = game:GetService("HttpService")
 local ScriptSearchTab = Window:CreateTab("Script Search", "search")
 
@@ -523,57 +524,66 @@ ScriptsTab:CreateInput({
 })
 
 ScriptsTab:CreateButton({
-    Name = "Kill fling",
+    Name = "Fling Target Player",
     Callback = function()
-        local target = game.Players:FindFirstChild(getgenv().FlingTargetName)
+        local target = Players:FindFirstChild(getgenv().FlingTargetName)
         local char = LocalPlayer.Character
-        if not (char and char:FindFirstChild("HumanoidRootPart")) then
+
+        if not (target and target.Character and target.Character:FindFirstChild("HumanoidRootPart")) then
             Rayfield:Notify({
-                Title = "Error",
-                Content = "Your character is not ready.",
-                Duration = 3,
-                Image = "alert-triangle"
+                Title = "Player Not Found",
+                Content = "Could not find target player or their character.",
+                Duration = 4,
+                Image = "user-x"
             })
             return
         end
 
-        if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-            local originalCFrame = char.HumanoidRootPart.CFrame
-
-            -- Move to target
-            char.HumanoidRootPart.CFrame = target.Character.HumanoidRootPart.CFrame + Vector3.new(0, 3, 0)
-
-            -- Fling logic
-            local BV = Instance.new("BodyVelocity")
-            BV.Velocity = Vector3.new(9999, 9999, 9999)
-            BV.MaxForce = Vector3.new(1e5, 1e5, 1e5)
-            BV.P = 1e5
-            BV.Parent = char.HumanoidRootPart
-
-            task.wait(0.5) -- give fling time to apply
-
-            BV:Destroy()
-            task.wait(0.5) -- allow body to settle
-
-            -- Return to original position
-            char.HumanoidRootPart.CFrame = originalCFrame
-
+        if not (char and char:FindFirstChild("HumanoidRootPart")) then
             Rayfield:Notify({
-                Title = "Fling Success",
-                Content = "Target was flung and you were teleported back.",
+                Title = "Error",
+                Content = "Your character is missing parts.",
                 Duration = 4,
-                Image = "zap"
+                Image = "alert-circle"
             })
-        else
-            Rayfield:Notify({
-                Title = "Target Not Found",
-                Content = "Could not find the specified player.",
-                Duration = 3,
-                Image = "user-x"
-            })
+            return
         end
+
+        local originalCFrame = char.HumanoidRootPart.CFrame
+        local targetHRP = target.Character:FindFirstChild("HumanoidRootPart")
+
+        -- Setup high angular velocity to spin yourself fast
+        local angularVelocity = Instance.new("BodyAngularVelocity")
+        angularVelocity.AngularVelocity = Vector3.new(0, 999999, 0)
+        angularVelocity.MaxTorque = Vector3.new(1e9, 1e9, 1e9)
+        angularVelocity.P = 1e9
+        angularVelocity.Parent = char.HumanoidRootPart
+
+        -- Move into the target
+        char.HumanoidRootPart.CFrame = targetHRP.CFrame + Vector3.new(0, 2, 0)
+
+        Rayfield:Notify({
+            Title = "Flinging...",
+            Content = "Attempting to fling " .. target.Name,
+            Duration = 3,
+            Image = "refresh-cw"
+        })
+
+        task.wait(1.5)
+
+        -- Cleanup and return to original position
+        angularVelocity:Destroy()
+        char.HumanoidRootPart.CFrame = originalCFrame
+
+        Rayfield:Notify({
+            Title = "Fling Complete",
+            Content = "Teleported back to your original location.",
+            Duration = 3,
+            Image = "arrow-left-circle"
+        })
     end
 })
+
 
 
 Rayfield:LoadConfiguration()
