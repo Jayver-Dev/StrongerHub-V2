@@ -342,62 +342,210 @@ RunService.Stepped:Connect(function()
     end
 end)
 
-local espEnabled = false
+local EspTab = Window:CreateTab("ESP", "eye")
+local EspSection = EspTab:CreateSection("ESP Settings")
+
+local showNames = true
+local showBoxes = false
+local useDistance = false
+local maxDistance = 300
+local espColor = Color3.fromRGB(255, 255, 255)
+local showTracers = false
+local teamCheck = false
+local show3DBoxes = false
+
 local espFolder = Instance.new("Folder", game.CoreGui)
-espFolder.Name = "StrongerHubESP"
+espFolder.Name = "StrongerHubAdvancedESP"
 
-ScriptsTab:CreateToggle({
-    Name = "Enable ESP",
-    CurrentValue = false,
-    Flag = "ESPToggle",
-    Callback = function(state)
-        espEnabled = state
+local function clearESP()
+    espFolder:ClearAllChildren()
+end
 
-        -- Clear ESP if disabling
-        if not state then
-            espFolder:ClearAllChildren()
-            return
-        end
+local function isSameTeam(player)
+    return teamCheck and player.Team == LocalPlayer.Team
+end
 
-        -- Generate ESP tags
-        for _, player in ipairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") then
-                local tag = Instance.new("BillboardGui")
-                tag.Name = player.Name .. "_ESP"
-                tag.Adornee = player.Character.Head
-                tag.Size = UDim2.new(0, 100, 0, 40)
-                tag.StudsOffset = Vector3.new(0, 2, 0)
-                tag.AlwaysOnTop = true
-                tag.Parent = espFolder
+local function createESP(player)
+    if player == LocalPlayer or isSameTeam(player) then return end
+    if not player.Character or not player.Character:FindFirstChild("Head") then return end
+    local head = player.Character.Head
+    local root = player.Character:FindFirstChild("HumanoidRootPart")
 
-                local nameLabel = Instance.new("TextLabel")
-                nameLabel.Size = UDim2.new(1, 0, 1, 0)
-                nameLabel.BackgroundTransparency = 1
-                nameLabel.Text = player.Name
-                nameLabel.TextColor3 = Color3.new(1, 1, 1)
-                nameLabel.TextStrokeTransparency = 0
-                nameLabel.Font = Enum.Font.SourceSansBold
-                nameLabel.TextScaled = true
-                nameLabel.Parent = tag
+    if showNames then
+        local nameTag = Instance.new("BillboardGui")
+        nameTag.Name = player.Name .. "_ESP_Name"
+        nameTag.Adornee = head
+        nameTag.Size = UDim2.new(0, 100, 0, 30)
+        nameTag.StudsOffset = Vector3.new(0, 2, 0)
+        nameTag.AlwaysOnTop = true
+        nameTag.Parent = espFolder
+
+        local nameLabel = Instance.new("TextLabel", nameTag)
+        nameLabel.Size = UDim2.new(1, 0, 1, 0)
+        nameLabel.BackgroundTransparency = 1
+        nameLabel.Text = player.Name
+        nameLabel.TextColor3 = espColor
+        nameLabel.TextScaled = true
+        nameLabel.Font = Enum.Font.SourceSansBold
+    end
+
+    if showBoxes and root then
+        local box = Instance.new("BoxHandleAdornment")
+        box.Name = player.Name .. "_ESP_Box"
+        box.Adornee = root
+        box.AlwaysOnTop = true
+        box.ZIndex = 5
+        box.Size = player.Character:GetExtentsSize()
+        box.Color3 = espColor
+        box.Transparency = 0.5
+        box.Parent = espFolder
+    end
+
+    if showTracers and root then
+        local line = Drawing.new("Line")
+        line.Visible = true
+        line.Color = espColor
+        line.Thickness = 1
+        line.Transparency = 1
+        line.ZIndex = 2
+
+        task.spawn(function()
+            while line and line.Visible and player and player.Character and root and root:IsDescendantOf(workspace) do
+                local rootPos, onScreen = workspace.CurrentCamera:WorldToViewportPoint(root.Position)
+                local screenCenter = Vector2.new(workspace.CurrentCamera.ViewportSize.X/2, workspace.CurrentCamera.ViewportSize.Y)
+
+                if onScreen then
+                    line.From = screenCenter
+                    line.To = Vector2.new(rootPos.X, rootPos.Y)
+                    line.Color = espColor
+                    line.Visible = true
+                else
+                    line.Visible = false
+                end
+                task.wait()
+            end
+            if line then
+                line:Remove()
+            end
+        end)
+    end
+
+    if show3DBoxes and root then
+        local box3D = Instance.new("SelectionBox")
+        box3D.Adornee = player.Character
+        box3D.LineThickness = 0.05
+        box3D.Color3 = espColor
+        box3D.SurfaceTransparency = 1
+        box3D.Parent = espFolder
+    end
+end
+
+local function updateESP()
+    clearESP()
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            if not useDistance or (player.Character and LocalPlayer:DistanceFromCharacter(player.Character:GetPivot().Position) <= maxDistance) then
+                createESP(player)
             end
         end
+    end
+end
 
-        Rayfield:Notify({
-            Title = "ESP",
-            Content = "ESP is now " .. (state and "enabled" or "disabled"),
-            Duration = 3,
-            Image = "eye",
-        })
+-- UI Controls
+EspTab:CreateToggle({
+    Name = "Show Name Tags",
+    CurrentValue = showNames,
+    Callback = function(state)
+        showNames = state
+        updateESP()
     end
 })
 
--- Optional: Clean up ESP when a player leaves
-Players.PlayerRemoving:Connect(function(plr)
-    local tag = espFolder:FindFirstChild(plr.Name .. "_ESP")
-    if tag then
-        tag:Destroy()
+EspTab:CreateToggle({
+    Name = "Box ESP",
+    CurrentValue = showBoxes,
+    Callback = function(state)
+        showBoxes = state
+        updateESP()
+    end
+})
+
+EspTab:CreateToggle({
+    Name = "Tracers",
+    CurrentValue = showTracers,
+    Callback = function(state)
+        showTracers = state
+        updateESP()
+    end
+})
+
+EspTab:CreateToggle({
+    Name = "3D Selection Box",
+    CurrentValue = show3DBoxes,
+    Callback = function(state)
+        show3DBoxes = state
+        updateESP()
+    end
+})
+
+EspTab:CreateToggle({
+    Name = "Use Distance Limit",
+    CurrentValue = useDistance,
+    Callback = function(state)
+        useDistance = state
+        updateESP()
+    end
+})
+
+EspTab:CreateSlider({
+    Name = "Max ESP Distance",
+    Range = {50, 1000},
+    Increment = 10,
+    CurrentValue = maxDistance,
+    Suffix = "Studs",
+    Callback = function(value)
+        maxDistance = value
+        if useDistance then updateESP() end
+    end
+})
+
+EspTab:CreateToggle({
+    Name = "Team Check (ignore teammates)",
+    CurrentValue = teamCheck,
+    Callback = function(state)
+        teamCheck = state
+        updateESP()
+    end
+})
+
+EspTab:CreateColorPicker({
+    Name = "ESP Color",
+    Color = espColor,
+    Callback = function(color)
+        espColor = color
+        updateESP()
+    end
+})
+
+-- Auto update for new players
+Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function()
+        task.wait(1)
+        updateESP()
+    end)
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+    for _, gui in pairs(espFolder:GetChildren()) do
+        if gui.Name:match(player.Name) then
+            gui:Destroy()
+        end
     end
 end)
+
+-- First update
+updateESP()
+
 
 ScriptsTab:CreateButton({
     Name = "Enable Fly",
@@ -514,72 +662,105 @@ ScriptSearchTab:CreateButton({
     end
 })
 
-ScriptsTab:CreateInput({
-    Name = "Fling Target Username",
-    PlaceholderText = "Enter player's username",
-    RemoveTextAfterFocusLost = false,
-    Callback = function(text)
-        getgenv().FlingTargetName = text
+-- Infinite Jump
+ScriptsTab:CreateToggle({
+    Name = "Infinite Jump",
+    CurrentValue = false,
+    Flag = "InfiniteJumpToggle",
+    Callback = function(state)
+        if state then
+            Rayfield:Notify({
+                Title = "Infinite Jump Enabled",
+                Content = "Hold spacebar to keep jumping.",
+                Duration = 3,
+                Image = "chevrons-up"
+            })
+
+            getgenv().InfJumpConnection = game:GetService("UserInputService").JumpRequest:Connect(function()
+                if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+                    LocalPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                end
+            end)
+        else
+            if getgenv().InfJumpConnection then
+                getgenv().InfJumpConnection:Disconnect()
+                getgenv().InfJumpConnection = nil
+            end
+
+            Rayfield:Notify({
+                Title = "Infinite Jump Disabled",
+                Content = "You can no longer infinitely jump.",
+                Duration = 3,
+                Image = "chevrons-down"
+            })
+        end
     end
 })
 
+-- Anti-AFK
 ScriptsTab:CreateButton({
-    Name = "Fling Target Player",
+    Name = "Enable Anti-AFK",
     Callback = function()
-        local target = Players:FindFirstChild(getgenv().FlingTargetName)
-        local char = LocalPlayer.Character
-
-        if not (target and target.Character and target.Character:FindFirstChild("HumanoidRootPart")) then
-            Rayfield:Notify({
-                Title = "Player Not Found",
-                Content = "Could not find target player or their character.",
-                Duration = 4,
-                Image = "user-x"
-            })
-            return
-        end
-
-        if not (char and char:FindFirstChild("HumanoidRootPart")) then
-            Rayfield:Notify({
-                Title = "Error",
-                Content = "Your character is missing parts.",
-                Duration = 4,
-                Image = "alert-circle"
-            })
-            return
-        end
-
-        local originalCFrame = char.HumanoidRootPart.CFrame
-        local targetHRP = target.Character:FindFirstChild("HumanoidRootPart")
-
-        -- Setup high angular velocity to spin yourself fast
-        local angularVelocity = Instance.new("BodyAngularVelocity")
-        angularVelocity.AngularVelocity = Vector3.new(0, 999999, 0)
-        angularVelocity.MaxTorque = Vector3.new(1e9, 1e9, 1e9)
-        angularVelocity.P = 1e9
-        angularVelocity.Parent = char.HumanoidRootPart
-
-        -- Move into the target
-        char.HumanoidRootPart.CFrame = targetHRP.CFrame + Vector3.new(0, 2, 0)
+        local vu = game:GetService("VirtualUser")
+        LocalPlayer.Idled:Connect(function()
+            vu:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+            task.wait(1)
+            vu:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+        end)
 
         Rayfield:Notify({
-            Title = "Flinging...",
-            Content = "Attempting to fling " .. target.Name,
-            Duration = 3,
-            Image = "refresh-cw"
+            Title = "Anti-AFK Enabled",
+            Content = "You will no longer be kicked for inactivity.",
+            Duration = 4,
+            Image = "alarm-clock"
         })
+    end
+})
 
-        task.wait(1.5)
+-- Anti-Kick
+ScriptsTab:CreateButton({
+    Name = "Enable Anti-Kick",
+    Callback = function()
+        local mt = getrawmetatable(game)
+        local oldNamecall = mt.__namecall
+        setreadonly(mt, false)
 
-        -- Cleanup and return to original position
-        angularVelocity:Destroy()
-        char.HumanoidRootPart.CFrame = originalCFrame
+        mt.__namecall = newcclosure(function(self, ...)
+            local method = getnamecallmethod()
+            if tostring(self) == "Kick" or method == "Kick" then
+                return
+            end
+            return oldNamecall(self, ...)
+        end)
+
+        setreadonly(mt, true)
 
         Rayfield:Notify({
-            Title = "Fling Complete",
-            Content = "Teleported back to your original location.",
-            Duration = 3,
-            Image = "arrow-left-circle"
+            Title = "Anti-Kick Enabled",
+            Content = "Kick attempts will be blocked.",
+            Duration = 4,
+            Image = "shield"
+        })
+    end
+})
+
+-- Hitbox Expander
+ScriptsTab:CreateButton({
+    Name = "Enable Hitbox Expander",
+    Callback = function()
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                player.Character.HumanoidRootPart.Size = Vector3.new(10, 10, 10)
+                player.Character.HumanoidRootPart.Transparency = 0.5
+                player.Character.HumanoidRootPart.Material = Enum.Material.ForceField
+            end
+        end
+
+        Rayfield:Notify({
+            Title = "Hitbox Expanded",
+            Content = "All players' hitboxes are enlarged.",
+            Duration = 4,
+            Image = "expand"
         })
     end
 })
