@@ -1,3 +1,4 @@
+loadstring(game:HttpGet('https://raw.githubusercontent.com/jalilwas/Sirius-Plugins/refs/heads/main/Rayfield%20Logo%20Remover'))()
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
 local Players = game:GetService("Players")
